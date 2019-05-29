@@ -15,7 +15,14 @@ const initCanvas = () => {
 
 let drawing = false
 let distanceBetweenPoints = 20
+let distanceSinceLastPoint = 0
 let mouse = {x: 0, y: 0}
+let sequence1 = []
+let sequence2 = []
+let yOringinS1 = 0
+let yOringinS2 = 0
+let drawingS1 = true
+let drawingS2 = false
 
 const computeMatrix = (sequence1, sequence2) => {
   let matrix = Array(sequence1.length).fill().map( () => Array(sequence2.length).fill(10000))
@@ -43,8 +50,6 @@ const getOptimalPath = (matrix, sequence1, sequence2) => {
   let i = sequence1.length-1
   let j = sequence2.length-1
   while (i > 0 || j > 0) {
-    // let min = Math.min( matrix[i-1][j] || 10000, matrix[i][j-1] || 10000, matrix[i-1][j-1] || 10000)
-
     let min
     if (i === 0) { // Sur la bordure haute
       min = matrix[i][j-1]
@@ -56,11 +61,11 @@ const getOptimalPath = (matrix, sequence1, sequence2) => {
       min = Math.min( matrix[i-1][j], matrix[i][j-1], matrix[i-1][j-1])
     }
 
-    if (i === 0) {
+    if (i === 0 || min === matrix[i][j-1]) {
       bestPath.push( {s1: i, s2: j-1} )
       j--
     }
-    else if (j === 0) {
+    else if (j === 0 || min === matrix[i-1][j]) {
       bestPath.push( {s1: i-1, s2: j} )
       i--
     }
@@ -73,39 +78,34 @@ const getOptimalPath = (matrix, sequence1, sequence2) => {
   return bestPath.reverse()
 }
 
-// let s1 = [1,4,8,3,3,1,4]
-// let s2 = [3,7,3,4,0]
-// let matrix = computeMatrix(s1, s2)
-// getOptimalPath(matrix, s1, s2)
-
-let sequence1 = []
-let sequence2 = []
-let drawingS1 = true
-let drawingS2 = false
-
 const startDraw = event => drawing = true
 const stopDraw = event => drawing = false
-let distanceSinceLastPoint = 0
 const draw = event => {
-  distanceSinceLastPoint += Math.abs(event.movementX) + Math.abs(event.movementY)
-  if (distanceSinceLastPoint > distanceBetweenPoints && drawing) {
-    mouse = {x: event.clientX, y: event.clientY}
-    recordDrawing()
-    distanceSinceLastPoint = 0
+  if (drawing) {
+    distanceSinceLastPoint += Math.abs(event.movementX) + Math.abs(event.movementY)
+    if (distanceSinceLastPoint > distanceBetweenPoints) {
+      mouse = {x: event.clientX, y: event.clientY}
+      recordDrawing()
+      distanceSinceLastPoint = 0
+    }
   }
-
 }
 
 const recordDrawing = () => {
   if (drawing){
-    if (drawingS1) sequence1.push({x: mouse.x, y: mouse.y})
-    else if (drawingS2) sequence2.push({x: mouse.x, y: mouse.y})
+    if (drawingS1) {
+      if (sequence1.length === 0) yOringinS1 = mouse.y
+      sequence1.push({x: mouse.x, y: mouse.y - yOringinS1})
+    }
+    else if (drawingS2) {
+      if (sequence2.length === 0) yOringinS2 = mouse.y
+      sequence2.push({x: mouse.x, y: mouse.y - yOringinS2})
+    }
     drawSequences()
     if (sequence1.length > 0 && sequence2.length > 0) {
       let matrix = computeMatrix(sequence1, sequence2)
       // console.table(matrix)
       let opt = getOptimalPath(matrix, sequence1, sequence2)
-      console.log(opt)
       drawOpt(opt, sequence1, sequence2)
     }
   }
@@ -117,15 +117,15 @@ const drawSequences = () => {
   ctx.strokeStyle = "#000000"
   if (sequence1.length > 0) {
     ctx.beginPath()
-    ctx.moveTo(sequence1[0].x, sequence1[0].y)
-    sequence1.forEach( point => ctx.lineTo(point.x, point.y))
+    ctx.moveTo(sequence1[0].x, sequence1[0].y + yOringinS1)
+    sequence1.forEach( point => ctx.lineTo(point.x, point.y + yOringinS1))
     ctx.stroke()
   }
   ctx.strokeStyle = "#ff0000"
   if (sequence2.length > 0) {
     ctx.beginPath()
-    ctx.moveTo(sequence2[0].x, sequence2[0].y)
-    sequence2.forEach( point => ctx.lineTo(point.x, point.y))
+    ctx.moveTo(sequence2[0].x, sequence2[0].y + yOringinS2)
+    sequence2.forEach( point => ctx.lineTo(point.x, point.y + yOringinS2))
     ctx.stroke()
   }
 }
@@ -134,8 +134,8 @@ const drawOpt = (opt, sequence1, sequence2) => {
   ctx.strokeStyle = "#00ff00"
   for (let i = 0; i < opt.length; i++) {
     ctx.beginPath()
-    ctx.moveTo(sequence1[opt[i].s1].x, sequence1[opt[i].s1].y)
-    ctx.lineTo(sequence2[opt[i].s2].x, sequence2[opt[i].s2].y)
+    ctx.moveTo(sequence1[opt[i].s1].x, sequence1[opt[i].s1].y + yOringinS1)
+    ctx.lineTo(sequence2[opt[i].s2].x, sequence2[opt[i].s2].y + yOringinS2)
     ctx.stroke()
   }
 }
